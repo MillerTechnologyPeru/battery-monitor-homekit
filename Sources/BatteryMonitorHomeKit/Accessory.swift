@@ -41,3 +41,31 @@ public enum BatteryMonitorAccessoryType: String, Codable, Sendable, CaseIterable
     case bm2 = "BM2"
     case powerWatchdog = "PowerWatchdog"
 }
+
+// MARK: - GATT
+
+internal extension BatteryMonitorAccessory {
+    
+    @discardableResult
+    func connect() async throws -> GATTConnection<NativeCentral> {
+        let central = self.central
+        let peripheral = self.peripheral
+        if await central.peripherals[peripheral] == false {
+            print("[\(peripheral)]: Connecting...")
+            // initiate connection
+            try await central.connect(to: peripheral)
+        }
+        // cache MTU
+        let maximumTransmissionUnit = try await central.maximumTransmissionUnit(for: peripheral)
+        // get characteristics by UUID
+        let servicesCache = try await central.cacheServices(for: peripheral)
+        let connectionCache = GATTConnection(
+            central: central,
+            peripheral: peripheral,
+            maximumTransmissionUnit: maximumTransmissionUnit,
+            cache: servicesCache
+        )
+        // store connection cache
+        return connectionCache
+    }
+}

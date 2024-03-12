@@ -57,9 +57,9 @@ public struct ScanDataCache <Peripheral: Peer, Advertisement: AdvertisementData>
     
     internal static func += (cache: inout ScanDataCache, scanData: GATT.ScanData<Peripheral, Advertisement>) {
         cache.scanData = scanData
-        cache.localName = scanData.advertisementData.localName
+        cache.localName = scanData.advertisementData.localName ?? cache.localName
         cache.txPowerLevel = scanData.advertisementData.txPowerLevel
-        cache.manufacturerData = scanData.advertisementData.manufacturerData
+        cache.manufacturerData = scanData.advertisementData.manufacturerData ?? cache.manufacturerData
         for serviceUUID in scanData.advertisementData.serviceUUIDs ?? [] {
             cache._serviceUUIDs.insert(serviceUUID)
         }

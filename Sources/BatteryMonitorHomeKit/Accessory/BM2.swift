@@ -17,7 +17,7 @@ import Leagend
 
 extension Leagend.BM2.Advertisement: BatteryMonitorAdvertisement {
     
-    static public var accessoryType: BatteryMonitorAccessoryType { .bt20 }
+    static public var accessoryType: BatteryMonitorAccessoryType { .bm2 }
     
     init?(scanData: ScanDataCache<NativeCentral.Peripheral, NativeCentral.Advertisement>) {
         self.init(scanData)

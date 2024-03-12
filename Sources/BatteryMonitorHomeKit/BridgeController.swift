@@ -10,6 +10,14 @@ import Bluetooth
 import GATT
 import HAP
 
+#if os(Linux)
+import Glibc
+import BluetoothLinux
+#elseif os(macOS)
+import Darwin
+import DarwinGATT
+#endif
+
 @MainActor
 final class BridgeController {
     
@@ -20,10 +28,10 @@ final class BridgeController {
     private let hapDevice: HAP.Device
     
     private let server: HAP.Server
-    
-    private let central: NativeCentral
-    
+        
     private let battery: BatterySource?
+    
+    private let scanDuration: TimeInterval
     
     let configuration: BridgeConfiguration
         
@@ -37,7 +45,7 @@ final class BridgeController {
         fileName: String,
         setupCode: HAP.Device.SetupCode,
         port: UInt,
-        central: NativeCentral,
+        scanDuration: TimeInterval,
         battery: BatterySource? = nil
     ) throws {
         // start server
@@ -60,43 +68,47 @@ final class BridgeController {
             services: services
         )
         self.hapDevice = hapDevice
-        self.central = central
         self.configuration = configuration
         self.battery = battery
+        self.scanDuration = scanDuration
         self.server = try HAP.Server(device: hapDevice, listenPort: Int(port))
         self.hapDevice.delegate = self
     }
     
     // MARK: - Methods
     
-    func scan() async throws {
+    func scan(duration: TimeInterval) async throws {
         self.scanResults.removeAll(keepingCapacity: true)
-        #if os(Linux)
-        let stream = try await central.scan(
-            filterDuplicates: false,
-            parameters: HCILESetScanParameters(
-                type: .active,
-                interval:  .max,
-                window: .max,
-                addressType: .public,
-                filterPolicy: .accept
+        let scanTask = Task {
+            let central = try await loadBluetooth()
+            #if os(Linux)
+            let stream = try await central.scan(
+                filterDuplicates: false,
+                parameters: HCILESetScanParameters(
+                    type: .active,
+                    interval:  .max,
+                    window: .max,
+                    addressType: .public,
+                    filterPolicy: .accept
+                )
             )
-        )
-        #else
-        let stream = try await central.scan(
-            filterDuplicates: false
-        )
-        #endif
-        Task {
-            try await Task.sleep(timeInterval: 45)
-            stream.stop()
+            #else
+            let stream = try await central.scan(
+                filterDuplicates: false
+            )
+            #endif
+            Task {
+                try await Task.sleep(timeInterval: 45)
+                stream.stop()
+            }
+            for try await scanData in stream {
+                await found(scanData)
+            }
         }
-        for try await scanData in stream {
-            await found(scanData)
-        }
+        try await scanTask.value
         // create accessories
         for cache in scanResults.values {
-            if bridge(BT20Accessory.self, from: cache) {
+            if try await bridge(BT20Accessory.self, from: cache) {
                 continue
             } else {
                 continue
@@ -106,12 +118,51 @@ final class BridgeController {
         log?("Bridging \(accessories.count) accessories")
     }
     
+    private func loadBluetooth(_ index: UInt = 0) async throws -> NativeCentral {
+        
+        #if os(Linux)
+        var controllers = await HostController.controllers
+        // keep trying to load Bluetooth device
+        while controllers.isEmpty || controllers.count < index {
+            log?("No Bluetooth adapters found")
+            try await Task.sleep(timeInterval: 5.0)
+            controllers = await HostController.controllers
+        }
+        var hostController: HostController = controllers[Int(index)]
+        let address = try await hostController.readDeviceAddress()
+        log?("Bluetooth Address: \(address)")
+        let clientOptions = GATTCentralOptions(
+            maximumTransmissionUnit: .max
+        )
+        let central = LinuxCentral(
+            hostController: hostController,
+            options: clientOptions,
+            socket: BluetoothLinux.L2CAPSocket.self
+        )
+        #elseif os(macOS)
+        let central = DarwinCentral()
+        #else
+        #error("Invalid platform")
+        #endif
+        
+        #if DEBUG
+        central.log = { print("Central: \($0)") }
+        #endif
+        
+        #if os(macOS)
+        // wait until XPC connection to blued is established and hardware is on
+        try await central.waitPowerOn()
+        #endif
+        
+        return central
+    }
+    
     private func found(_ scanData: ScanData<NativeCentral.Peripheral, NativeCentral.Advertisement>) async {
         // aggregate scan data
         assert(Thread.isMainThread)
         let oldCacheValue = scanResults[scanData.peripheral]
         // cache discovered peripheral in background
-        let cache = await Task.detached { [weak central] in
+        let cache = await Task.detached {
             assert(Thread.isMainThread == false)
             var cache = oldCacheValue ?? ScanDataCache(scanData: scanData)
             cache += scanData
@@ -131,7 +182,7 @@ final class BridgeController {
     private func bridge<T>(
         _ accessoryType: T.Type,
         from scanData: ScanDataCache<NativeCentral.Peripheral, NativeCentral.Advertisement>
-    ) -> Bool where T: BatteryMonitorAccessory, T: HAP.Accessory {
+    ) async throws -> Bool where T: BatteryMonitorAccessory, T: HAP.Accessory {
         guard let advertisement = T.Advertisement.init(scanData: scanData) else {
             return false
         }
@@ -140,9 +191,10 @@ final class BridgeController {
             log?("Ignoring \(T.accessoryType) \(peripheral.description)")
             return false
         }
-        if let accessory = self.accessories[scanData.scanData.peripheral] as? T {
+        if let _ = self.accessories[scanData.scanData.peripheral] as? T {
             return true
         } else {
+            let central = try await loadBluetooth()
             let newAccessory = T.init(
                 peripheral: peripheral,
                 central: central,

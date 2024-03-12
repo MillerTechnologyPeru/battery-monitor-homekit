@@ -44,6 +44,9 @@ struct BatteryMonitorHomeKitTool: ParsableCommand {
     @Option(help: "The port of the HAP server.")
     var port: UInt = 8000
     
+    @Option(help: "The scan duration.")
+    var scanDuration: UInt = 45
+    
     #if os(Linux)
     @Option(help: "Battery path.")
     var battery: String?
@@ -60,23 +63,24 @@ struct BatteryMonitorHomeKitTool: ParsableCommand {
         batterySource = try self.battery.flatMap { try LinuxBattery(filePath: $0) }
         #endif
         
+        let scanDuration = TimeInterval(self.scanDuration)
+        
         // start async code
         Task {
             do {
-                let central = try await Self.loadBluetooth()
                 try await MainActor.run {
                     let controller = try BridgeController(
                         fileName: file,
                         setupCode: setupCode.map { .override($0) } ?? .random,
-                        port: port,
-                        central: central,
+                        port: port, 
+                        scanDuration: scanDuration,
                         battery: batterySource
                     )
                     controller.log = { print($0) }
                     controller.printPairingInstructions()
                     Self.controller = controller
                 }
-                try await Self.controller.scan()
+                try await Self.controller.scan(duration: scanDuration)
             }
             catch {
                 fatalError("\(error)")
@@ -85,43 +89,5 @@ struct BatteryMonitorHomeKitTool: ParsableCommand {
         
         // run main loop
         RunLoop.main.run()
-    }
-    
-    private static func loadBluetooth() async throws -> NativeCentral {
-        
-        #if os(Linux)
-        var hostController: HostController! = await HostController.default
-        // keep trying to load Bluetooth device
-        while hostController == nil {
-            print("No Bluetooth adapters found")
-            try await Task.sleep(nanoseconds: 5 * 1_000_000_000)
-            hostController = await HostController.default
-        }
-        let address = try await hostController.readDeviceAddress()
-        print("Bluetooth Address: \(address)")
-        let clientOptions = GATTCentralOptions(
-            maximumTransmissionUnit: .max
-        )
-        let central = LinuxCentral(
-            hostController: hostController,
-            options: clientOptions,
-            socket: BluetoothLinux.L2CAPSocket.self
-        )
-        #elseif os(macOS)
-        let central = DarwinCentral()
-        #else
-        #error("Invalid platform")
-        #endif
-        
-        #if DEBUG
-        central.log = { print("Central: \($0)") }
-        #endif
-        
-        #if os(macOS)
-        // wait until XPC connection to blued is established and hardware is on
-        try await central.waitPowerOn()
-        #endif
-        
-        return central
     }
 }
