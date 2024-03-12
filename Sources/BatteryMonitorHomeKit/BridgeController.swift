@@ -98,7 +98,7 @@ final class BridgeController {
             )
             #endif
             Task {
-                try await Task.sleep(timeInterval: 45)
+                try await Task.sleep(timeInterval: duration)
                 stream.stop()
             }
             for try await scanData in stream {
@@ -109,6 +109,8 @@ final class BridgeController {
         // create accessories
         for cache in scanResults.values {
             if try await bridge(BT20Accessory.self, from: cache) {
+                continue
+            } else if try await bridge(PowerWatchdogAccessory.self, from: cache) {
                 continue
             } else {
                 continue

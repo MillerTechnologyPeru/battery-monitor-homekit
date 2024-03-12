@@ -69,6 +69,7 @@ private extension BT20Accessory {
                 }
                 catch {
                     print("[\(address)]: \(error)")
+                    try? await Task.sleep(timeInterval: 5.0)
                 }
             }
         }

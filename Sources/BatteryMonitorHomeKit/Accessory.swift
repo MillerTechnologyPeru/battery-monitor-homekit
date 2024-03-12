@@ -50,6 +50,14 @@ internal extension BatteryMonitorAccessory {
     func connect() async throws -> GATTConnection<NativeCentral> {
         let central = self.central
         let peripheral = self.peripheral
+        let stream = try await central.scan(filterDuplicates: false)
+        for try await scanData in stream {
+            guard scanData.peripheral == peripheral else {
+                continue
+            }
+            stream.stop()
+            break
+        }
         if await central.peripherals[peripheral] == false {
             print("[\(peripheral)]: Connecting...")
             // initiate connection
