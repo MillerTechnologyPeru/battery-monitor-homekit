@@ -85,6 +85,11 @@ let package = Package(
                     package: "GATT",
                     condition: .when(platforms: [.macOS])
                 ),
+                .product(
+                    name: "BluetoothLinux",
+                    package: "BluetoothLinux",
+                    condition: .when(platforms: [.linux])
+                )
             ]
         ),
         .testTarget(
