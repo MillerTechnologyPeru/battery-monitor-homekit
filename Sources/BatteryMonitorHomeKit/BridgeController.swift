@@ -112,6 +112,8 @@ final class BridgeController {
                 continue
             } else if try await bridge(TB6000ProAccessory.self, from: cache) {
                 continue
+            } else if try await bridge(BM2Accessory.self, from: cache) {
+                continue
             }  else if try await bridge(PowerWatchdogAccessory.self, from: cache) {
                 continue
             } else {
