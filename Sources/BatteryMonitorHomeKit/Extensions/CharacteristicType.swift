@@ -21,4 +21,8 @@ public extension CharacteristicType {
     static var eveConsumption: CharacteristicType {
         .custom(UUID(uuidString: "E863F10D-079E-48FF-8F27-9C2605A29F52")!)
     }
+    
+    static var eveTotalConsumption: CharacteristicType {
+        .custom(UUID(uuidString: "E863F10C-079E-48FF-8F27-9C2605A29F52")!)
+    }
 }
