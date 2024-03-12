@@ -104,13 +104,14 @@ extension BT20Accessory {
     final class BatteryService: HAP.Service.Battery {
         
         let batteryVoltage = GenericCharacteristic<Float>(
-            type: .eveVoltage,
+            type: .custom(UUID(uuidString: "5C7D8287-D288-4F4D-BB4A-161A83A99752")!),
             value: 12,
             permissions: [.read, .events],
             description: "Battery Voltage",
             format: .float,
             unit: .none
         )
+        
         /*
         let batteryCurrent = GenericCharacteristic<Float>(
             type: .eveCurrent,

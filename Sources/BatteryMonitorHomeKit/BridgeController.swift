@@ -110,7 +110,9 @@ final class BridgeController {
         for cache in scanResults.values {
             if try await bridge(BT20Accessory.self, from: cache) {
                 continue
-            } else if try await bridge(PowerWatchdogAccessory.self, from: cache) {
+            } else if try await bridge(TB6000ProAccessory.self, from: cache) {
+                continue
+            }  else if try await bridge(PowerWatchdogAccessory.self, from: cache) {
                 continue
             } else {
                 continue
@@ -238,6 +240,12 @@ extension BridgeController: HAP.DeviceDelegate {
                            didChangeValue newValue: T?) {
         log?("Characteristic \(characteristic) in service \(service.type) of accessory \(accessory.info.name.value ?? "") did change: \(String(describing: newValue))")
         
+        // Set power state
+        if let accessory = accessory as? TB6000ProAccessory,
+           characteristic.type == .powerState,
+           let value = newValue as? Bool {
+            accessory.setPowerState(value)
+        }
     }
 
     func characteristicListenerDidSubscribe(_ accessory: HAP.Accessory,
