@@ -39,7 +39,7 @@ final class TB6000ProAccessory: HAP.Accessory.Switch, BatteryMonitorAccessory {
         self.advertisement = advertisement
         self.configuration = configuration
         let info = Service.Info.Info(
-            name: configuration?.name ?? "Topdon TB6000Pro Battery Charger",
+            name: configuration?.name ?? "TB6000Pro Battery Charger",
             serialNumber: advertisement.address.rawValue,
             manufacturer: "Topdon",
             model: configuration?.model ?? Swift.type(of: advertisement).name,

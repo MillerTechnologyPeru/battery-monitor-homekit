@@ -37,7 +37,7 @@ final class BT20Accessory: HAP.Accessory.ContactSensor, BatteryMonitorAccessory 
         self.advertisement = advertisement
         self.configuration = configuration
         let info = Service.Info.Info(
-            name: configuration?.name ?? "Topdon BT20 Battery Monitor",
+            name: configuration?.name ?? "BT20 Battery Monitor",
             serialNumber: advertisement.address.rawValue,
             manufacturer: "Topdon",
             model: configuration?.model ?? Swift.type(of: advertisement).name,

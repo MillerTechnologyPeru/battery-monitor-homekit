@@ -36,7 +36,7 @@ final class BM2Accessory: HAP.Accessory.ContactSensor, BatteryMonitorAccessory {
         self.advertisement = advertisement
         self.configuration = configuration
         let info = Service.Info.Info(
-            name: configuration?.name ?? "Leagend BM2 Battery Monitor",
+            name: configuration?.name ?? "BM2 Battery Monitor",
             serialNumber: peripheral.description,
             manufacturer: "Leagend",
             model: configuration?.model ?? advertisement.name.rawValue,
