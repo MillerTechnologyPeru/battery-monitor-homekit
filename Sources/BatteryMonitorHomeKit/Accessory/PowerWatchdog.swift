@@ -36,7 +36,7 @@ final class PowerWatchdogAccessory: HAP.Accessory.ContactSensor, BatteryMonitorA
         self.advertisement = advertisement
         self.configuration = configuration
         let info = Service.Info.Info(
-            name: configuration?.name ?? "Hughes Autoformers Power Watchdog Surge Protector",
+            name: configuration?.name ?? "Power Watchdog Surge Protector",
             serialNumber: advertisement.id.description,
             manufacturer: "Hughes Autoformers",
             model: configuration?.model ?? Swift.type(of: advertisement).accessoryType.rawValue,
@@ -83,6 +83,7 @@ private extension PowerWatchdogAccessory {
             self.surgeProtector.current.value = status.amperage
             self.surgeProtector.consumption.value = status.watts
             self.surgeProtector.totalConsumption.value = status.totalWatts
+            self.surgeProtector.frequency.value = status.frequency
         case 1:
             break
         default:
@@ -133,6 +134,15 @@ extension PowerWatchdogAccessory {
             unit: .none
         )
         
+        let frequency = GenericCharacteristic<Float>(
+            type: .custom(UUID(uuidString: "D1957F69-BAFB-4508-A4D1-573C606B0067")!),
+            value: 60,
+            permissions: [.read, .events],
+            description: "Frequency",
+            format: .float,
+            unit: .none
+        )
+        
         let line = GenericCharacteristic<UInt8>(
             type: .custom(UUID(uuidString: "6F2B1F3E-95A6-496B-99A4-C853BE14DA01")!),
             value: 1,
@@ -153,6 +163,7 @@ extension PowerWatchdogAccessory {
                 AnyCharacteristic(current),
                 AnyCharacteristic(consumption),
                 AnyCharacteristic(totalConsumption),
+                AnyCharacteristic(frequency),
                 AnyCharacteristic(line)
             ])
             self.line.value = lineValue.rawValue + 1
